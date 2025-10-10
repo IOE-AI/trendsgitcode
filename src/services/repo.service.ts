@@ -1,4 +1,20 @@
-const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+function getBaseUrl() {
+  const isServer = typeof window === 'undefined';
+  if (!isServer) return '';
+
+  // Prefer explicitly provided public API URL
+  const explicit = process.env.NEXT_PUBLIC_API_URL;
+  if (explicit && explicit.trim()) return explicit.replace(/\/$/, '');
+
+  // Vercel provides VERCEL_URL without protocol
+  const vercel = process.env.VERCEL_URL;
+  if (vercel && vercel.trim()) return `https://${vercel.replace(/\/$/, '')}`;
+
+  // Fallback for local dev
+  return 'http://localhost:3000';
+}
+
+const baseUrl = getBaseUrl();
 
 export async function getAllRepos() {
   return getReposByCreationDate(new Date().toISOString());

@@ -1,89 +1,80 @@
 import { prisma } from '@/lib/db';
-import axios from 'axios';
 import type { NextApiRequest, NextApiResponse } from 'next';
-import * as cheerio from 'cheerio';
+import getGitHubProvider from '../../src/providers/github';
+import getGitCodeProvider from '../../src/providers/gitcode';
+import type { TrendingProvider } from '../../src/providers/types';
+import { delay } from '../../src/providers/types';
 
-async function handler(_req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(_req: NextApiRequest, res: NextApiResponse) {
+  console.log('Seeding process started');
+  console.log(`Provider: ${process.env.GIT_PROVIDER}`);
+
   try {
-    // Fetch trending page
-    const response = await axios.get('https://github.com/trending?since=daily');
-    const $ = cheerio.load(response.data);
-    const repos = [];
+    const providerEnv = process.env.GIT_PROVIDER?.toLowerCase() || 'github';
+    const provider: TrendingProvider = providerEnv === 'gitcode' ? getGitCodeProvider() : getGitHubProvider();
+    const token = providerEnv === 'gitcode' ? process.env.GITCODE_TOKEN : process.env.GITHUB_TOKEN;
 
-    // Find repository links and extract owner/repo
-    const repoLinks = $('a[href*="/"]:has(.octicon-repo)');
+    const fullNames = await provider.getTrendingFullNames();
+    if (!fullNames.length) {
+      console.warn(`No trending repos found for provider: ${providerEnv}`);
+    }
 
-    for (const link of repoLinks) {
-      const href = $(link).attr('href');
-      if (!href) continue;
+    let createdCount = 0;
+    let updatedCount = 0;
+    const buffer: any[] = [];
 
-      // Remove leading slash and get owner/repo
-      const fullName = href.substring(1);
+    for (const fullName of fullNames) {
+      const normalized = await provider.getRepoDetail(fullName, token);
 
-      try {
-        // Fetch detailed repo information from GitHub API
-        const apiResponse = await axios.get(
-          `https://api.github.com/repos/${fullName}`,
-          {
-            headers: {
-              Accept: 'application/vnd.github.v3+json'
-              // Add your GitHub token if you have one
-              // 'Authorization': 'token YOUR_GITHUB_TOKEN'
-            }
-          }
-        );
+      buffer.push({ ...normalized, created_at: new Date(Date.now()) });
+      await delay(1000);
+    }
 
-        const repoData = apiResponse.data;
+    // Insert or update records
+    for (const item of buffer.reverse()) {
+      const existingRepo = await prisma.repo.findFirst({
+        where: { github_id: String(item.github_id) },
+      });
 
-        repos.push({
-          github_id: repoData.id.toString(),
-          node_id: repoData.node_id.toString(),
-          name: repoData.name,
-          full_name: repoData.full_name,
-          owner_login: repoData.owner.login,
-          owner_id: repoData.owner.id.toString(),
-          owner_avatar_url: repoData.owner.avatar_url,
-          owner_html_url: repoData.owner.html_url,
-          html_url: repoData.html_url,
-          description: repoData.description,
-          url: repoData.url,
-          size: repoData.size,
-          stargazers_count: repoData.stargazers_count,
-          watchers_count: repoData.watchers_count,
-          language: repoData.language,
-          forks_count: repoData.forks_count,
-          open_issues_count: repoData.open_issues_count,
-          license_key: repoData.license?.key || null,
-          license_name: repoData.license?.name || null,
-          topics: repoData.topics.join(','), // Converting array to comma-separated string
-          default_branch: repoData.default_branch,
-          subscribers_count: repoData.subscribers_count,
-          created_at: new Date(Date.now())
+      if (existingRepo) {
+        await prisma.repo.update({
+          where: { id: existingRepo.id },
+          data: {
+            node_id: String(item.node_id),
+            name: item.name,
+            full_name: item.full_name,
+            owner_login: item.owner_login,
+            owner_id: String(item.owner_id),
+            owner_avatar_url: item.owner_avatar_url,
+            owner_html_url: item.owner_html_url,
+            html_url: item.html_url,
+            description: item.description,
+            url: item.url,
+            size: item.size,
+            stargazers_count: item.stargazers_count,
+            watchers_count: item.watchers_count,
+            language: item.language,
+            forks_count: item.forks_count,
+            open_issues_count: item.open_issues_count,
+            license_key: item.license_key,
+            license_name: item.license_name,
+            topics: item.topics,
+            default_branch: item.default_branch,
+            subscribers_count: item.subscribers_count,
+          },
         });
-      } catch (apiError) {
-        console.error(`Failed to fetch details for ${fullName}:`, apiError);
+        updatedCount++;
+      } else {
+        await prisma.repo.create({
+          data: item,
+        });
+        createdCount++;
       }
-
-      // Add a small delay to avoid hitting rate limits
-      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    const reversedRepos = repos.reverse();
-
-    const insert = await prisma.repo.createMany({
-      data: reversedRepos
-    });
-
-    if (insert.count === repos.length) {
-      console.log('Successfully inserted records');
-    }
-
-    res.status(200).send('ok.');
-  } catch (error) {
-    res.status(500).json({
-      error: error
-    });
+    res.status(200).json({ message: 'Seed completed', provider: providerEnv, created: createdCount, updated: updatedCount });
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ message: 'Error seeding database', error: error.message });
   }
 }
-
-export default handler;

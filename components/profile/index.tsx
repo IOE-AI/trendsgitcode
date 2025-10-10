@@ -14,6 +14,33 @@ import { languageColors } from '../language-colors';
 import { useRepoContext } from 'context/RepoContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
+
+function rehypeRewriteImgUrls(options?: { baseApi: string }) {
+  const baseApi = options?.baseApi || '';
+  return function transformer(tree: any) {
+    const walk = (node: any) => {
+      if (!node) return;
+      if (node.type === 'element') {
+        if (node.tagName === 'img' && node.properties) {
+          const srcProp = node.properties.src as string | undefined;
+          if (typeof srcProp === 'string' && srcProp.length > 0) {
+            if (!/^https?:\/\//i.test(srcProp)) {
+              const normalized = srcProp.startsWith('/')
+                ? srcProp.replace(/^\/+/, '')
+                : srcProp;
+              node.properties.src = `${baseApi}${encodeURIComponent(normalized)}`;
+            }
+          }
+        }
+        if (Array.isArray(node.children)) node.children.forEach(walk);
+      } else if (Array.isArray(node.children)) {
+        node.children.forEach(walk);
+      }
+    };
+    walk(tree);
+  };
+}
 
 const formatNumber = (num: number): string => {
   if (num >= 1000000) {
@@ -40,12 +67,16 @@ export default function Profile({ id }: { id: any }) {
 
   useEffect(() => {
     async function fetchReadme() {
+      console.log('data', data);
       if (!data) return;
       try {
         setIsLoading(true);
-        const response = await fetch(
-          `https://raw.githubusercontent.com/${data.full_name}/${data.default_branch}/README.md`
-        );
+        const providerEnv = data?.url?.toLowerCase()?.includes('https://gitcode.com') ? 'gitcode' : 'github';
+        console.log('data', data);
+        const [owner, repo = ''] = (data?.full_name || '').split(/\/(.+)/);
+        const apiUrl = `/api/readme?provider=${providerEnv}&owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}&path=${encodeURIComponent('README.md')}&ref=${encodeURIComponent(data?.default_branch || 'main')}`;
+        console.log('readmeApiUrl', apiUrl);
+        const response = await fetch(apiUrl);
         const content = await response.text();
         setReadmeContent(content);
       } catch (error) {
@@ -172,7 +203,23 @@ export default function Profile({ id }: { id: any }) {
               <LoadingDots color={'#FFF'} />
             </div>
           ) : readmeContent ? (
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{readmeContent}</ReactMarkdown>
+            (() => {
+              const providerEnv = data?.url?.toLowerCase()?.includes('https://gitcode.com') ? 'gitcode' : 'github';
+              const [owner, repo = ''] = (data?.full_name || '').split(/\/(.+)/);
+              const ref = encodeURIComponent(data?.default_branch || 'main');
+              const baseApi = `/api/readme?provider=${providerEnv}&owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}&ref=${ref}&path=`;
+              return (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[
+                    rehypeRaw,
+                    [rehypeRewriteImgUrls, { baseApi }]
+                  ]}
+                >
+                  {readmeContent}
+                </ReactMarkdown>
+              );
+            })()
           ) : (
             <p>No readme.md file</p>
           )}

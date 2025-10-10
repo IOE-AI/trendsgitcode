@@ -1,5 +1,7 @@
 # Trendsgit – Historical Trending Repositories
 
+Chinese documentation: [README.zh-CN.md](./README.zh-CN.md)
+
 Trending Repos Archive is a platform that lets users explore the historical popularity of repositories across various platforms.
 
 Project website: [https://trendsgit.vercel.app](https://trendsgit.vercel.app)
