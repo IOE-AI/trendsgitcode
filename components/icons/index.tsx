@@ -14,3 +14,4 @@ export { default as WatchIcon } from './watch-icon';
 export { default as StarIcon } from './star-icon';
 export { default as ForkIcon } from './fork-icon';
 export { default as LawIcon } from './law-icon';
+export { default as GitCodeIcon } from './gitcode';

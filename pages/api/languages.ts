@@ -2,6 +2,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 
 async function handler(_req: NextApiRequest, res: NextApiResponse) {
   const languages = [
+    'Cangjie',
+    'ArkTS',
     'TypeScript',
     'CSS',
     'JavaScript',

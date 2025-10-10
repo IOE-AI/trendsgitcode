@@ -2,6 +2,7 @@ import { getGradient } from '@/lib/gradients';
 import {
   CheckInCircleIcon,
   GitHubIcon,
+  GitCodeIcon,
   StarIcon,
   WatchIcon,
   ForkIcon,
@@ -159,15 +160,26 @@ export default function Profile({ id }: { id: any }) {
               </div>
             </div>
             <div className="mt-6 flex flex-col justify-stretch space-y-3 sm:flex-row sm:space-y-0 sm:space-x-4">
-              <a
-                href={data?.html_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex justify-center px-4 py-2 border border-gray-800 hover:border-white shadow-sm text-sm font-medium rounded-md text-white font-mono bg-black focus:outline-none focus:ring-0 transition-all"
-              >
-                <GitHubIcon className="mr-3 h-5 w-5 text-white" />
-                <span>View GitHub Profile</span>
-              </a>
+              {(() => {
+                const isGitCode = data?.url?.toLowerCase()?.includes('https://gitcode.com');
+                const label = isGitCode ? 'View GitCode Profile' : 'View GitHub Profile';
+
+                return (
+                  <a
+                    href={data?.html_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex justify-center px-4 py-2 border border-gray-800 hover:border-white shadow-sm text-sm font-medium rounded-md text-white font-mono bg-black focus:outline-none focus:ring-0 transition-all"
+                  >
+                    {isGitCode ? (
+                      <GitCodeIcon className="mr-3 h-5 w-5 text-white" />
+                    ) : (
+                      <GitHubIcon className="mr-3 h-5 w-5 text-white" />
+                    )}
+                    <span>{label}</span>
+                  </a>
+                );
+              })()}
             </div>
           </div>
         </div>
