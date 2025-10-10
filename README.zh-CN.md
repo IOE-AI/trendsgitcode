@@ -2,7 +2,7 @@
 
 Trendsgit 是一个历史归档平台，帮助你探索不同时间段内开源仓库的趋势变化与人气走势。你可以使用站点页面进行浏览，也可以通过提供的 API 获取数据并集成到自己的应用中。
 
-站点地址：<https://trendsgit.vercel.app>
+站点地址：<https://trendsgit.huqi.host>
 
 ---
 
