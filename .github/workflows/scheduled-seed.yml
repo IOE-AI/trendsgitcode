@@ -15,8 +15,9 @@ jobs:
 
     env:
       PAT: ${{ secrets.PAT }}
-      GIT_PROVIDER: ${{ env.GIT_PROVIDER }}
+      GIT_PROVIDER: ${{ vars.GIT_PROVIDER }}
       GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout repository
@@ -32,8 +33,14 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Start Next.js app in the background
-        run: export GIT_PROVIDER=${{ env.GIT_PROVIDER }} && export GITCODE_TOKEN=${{ env.GITCODE_TOKEN }} && npm run build && npm run start &
+      - name: Build and start Next.js app in the background
+        env:
+          GIT_PROVIDER: ${{ env.GIT_PROVIDER }}
+          GITCODE_TOKEN: ${{ env.GITCODE_TOKEN }}
+          GITHUB_TOKEN: ${{ env.GITHUB_TOKEN }}
+        run: |
+          npm run build
+          npm run start &
 
       - name: Wait for the server to be ready
         run: |
