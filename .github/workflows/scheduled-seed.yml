@@ -13,11 +13,16 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    env:
+      PAT: ${{ secrets.PAT }}
+      GIT_PROVIDER: ${{ env.GIT_PROVIDER }}
+      GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          token: ${{ secrets.PAT }}
+          token: ${{ env.PAT }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -28,7 +33,7 @@ jobs:
         run: npm install --legacy-peer-deps
 
       - name: Start Next.js app in the background
-        run: npm run build && npm run start &
+        run: export GIT_PROVIDER=${{ env.GIT_PROVIDER }} && export GITCODE_TOKEN=${{ env.GITCODE_TOKEN }} && npm run build && npm run start &
 
       - name: Wait for the server to be ready
         run: |
