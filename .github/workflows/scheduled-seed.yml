@@ -55,8 +55,8 @@ jobs:
 
       - name: Check for changes in SQLite DB
         run: |
-          git config --global user.name "onurkanbakirci"
-          git config --global user.email "onurkanbakirci@users.noreply.github.com"
+          git config --global user.name "huqi"
+          git config --global user.email "huqi1024@gmail.com"
           git add .
           git commit -m "feat: new entities added" || echo "No changes to commit"
           git push origin main
